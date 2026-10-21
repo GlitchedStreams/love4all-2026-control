@@ -1,0 +1,691 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Love4All Control Panel</title>
+<style>
+  :root {
+    --bg: #101113; --panel: #18191c; --panel-2: #202226; --line: #2b2e33;
+    --text: #ecebe7; --muted: #8e9198; --accent: #ff5c8a; --accent-ink: #1a0a10;
+    --ok: #5ad48f; --warn: #ffb547; --bad: #ff6060; --info: #6cc4ff;
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 var(--sans); }
+  button, input, select { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  [hidden] { display: none !important; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 18px 16px 70px; }
+
+  /* gate */
+  .gate { max-width: 380px; margin: 16vh auto 0; padding: 26px; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; }
+  .gate h1 { margin: 0 0 4px; font-size: 20px; }
+  .gate p { color: var(--muted); font-size: 13px; margin: 0 0 16px; }
+  .gate .err { color: var(--bad); }
+
+  /* header */
+  header { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin-bottom: 14px; }
+  .brand { font-weight: 800; font-size: 18px; letter-spacing: -.01em; }
+  .brand span { color: var(--accent); }
+  .pill { display: inline-flex; align-items: center; gap: 7px; padding: 5px 10px; border-radius: 999px; background: var(--panel); border: 1px solid var(--line); font: 12px var(--mono); color: var(--muted); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+  .dot.ok { background: var(--ok); } .dot.bad { background: var(--bad); } .dot.warn { background: var(--warn); }
+  .spacer { flex: 1; }
+
+  nav { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 18px; overflow-x: auto; }
+  nav button { background: none; border: 0; border-bottom: 2px solid transparent; padding: 10px 14px; color: var(--muted); font-weight: 600; white-space: nowrap; }
+  nav button.on { color: var(--text); border-bottom-color: var(--accent); }
+
+  /* generic */
+  .btn { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 7px 12px; font-size: 13px; }
+  .btn:hover { border-color: #3d4148; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 700; }
+  .btn.danger { color: var(--bad); }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .field { display: grid; gap: 5px; margin-bottom: 12px; }
+  .field label { font-size: 12px; color: var(--muted); font-weight: 600; }
+  .field small { color: var(--muted); font-size: 12px; }
+  input[type=text], input[type=password], input[type=number], input[type=url], input[type=search], select {
+    width: 100%; background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px; min-width: 0;
+  }
+  input:focus, select:focus { outline: 2px solid rgba(255,92,138,.35); border-color: var(--accent); }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }
+  .section-title { display: flex; align-items: center; gap: 10px; margin: 26px 0 10px; flex-wrap: wrap; }
+  .section-title h2 { margin: 0; font-size: 15px; }
+  .section-title p { margin: 0; color: var(--muted); font-size: 13px; flex-basis: 100%; }
+  .empty { padding: 18px; color: var(--muted); text-align: center; font-size: 13px; }
+  .mono { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .badge { font: 600 10px var(--mono); letter-spacing: .04em; text-transform: uppercase; padding: 2px 6px; border-radius: 4px; background: var(--panel-2); color: var(--muted); }
+  .badge.info { background: rgba(108,196,255,.13); color: var(--info); }
+  .badge.warn { background: rgba(255,181,71,.13); color: var(--warn); }
+
+  .switch { position: relative; flex: none; width: 38px; height: 22px; border-radius: 999px; background: #3a3e45; border: 0; padding: 0; transition: background .15s; }
+  .switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #c9cbcf; transition: transform .15s; }
+  .switch.on { background: var(--ok); }
+  .switch.on::after { transform: translateX(16px); background: #0d1a12; }
+
+  /* entropy trigger cards */
+  .triggers { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+  @media (max-width: 860px) { .triggers { grid-template-columns: 1fr; } }
+  .trigger { padding: 16px; display: grid; gap: 12px; align-content: start; }
+  .trigger .top { display: flex; align-items: center; gap: 10px; }
+  .trigger h3 { margin: 0; font-size: 16px; flex: 1; }
+  .trigger .price { font-size: 26px; font-weight: 800; letter-spacing: -.02em; }
+  .trigger .price small { font-size: 13px; color: var(--muted); font-weight: 600; margin-left: 4px; }
+  .trigger .desc { color: var(--muted); font-size: 13px; margin: 0; }
+  .trigger .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .trigger.off .price { color: var(--muted); }
+
+  /* amount editor */
+  .amount-editor { display: grid; gap: 8px; padding: 12px; border-radius: 10px; background: var(--panel-2); border: 1px solid var(--line); }
+  .seg { display: flex; background: var(--bg); border-radius: 8px; padding: 3px; gap: 3px; }
+  .seg button { flex: 1; border: 0; background: none; padding: 6px 4px; border-radius: 6px; font-size: 12px; color: var(--muted); font-weight: 600; }
+  .seg button.on { background: var(--panel); color: var(--text); }
+  .money { position: relative; }
+  .money::before { content: "$"; position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--muted); }
+  .money input { padding-left: 22px; }
+
+  /* lists */
+  .list-item { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+  .list-item:last-child { border-bottom: 0; }
+  .list-item .amt { font-weight: 800; font-size: 15px; min-width: 110px; }
+  .list-item .name { font-weight: 600; }
+  .list-item .sub { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .list-item .btns { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+  .list-item.off .name, .list-item.off .amt { color: var(--muted); }
+  .overlap { color: var(--warn); font-size: 12px; margin-top: 2px; }
+  @media (max-width: 640px) {
+    .list-item { grid-template-columns: minmax(0, 1fr); }
+    .list-item .btns { justify-content: flex-start; }
+  }
+
+  .pool-tools { display: flex; gap: 8px; padding: 12px 14px; border-bottom: 1px solid var(--line); flex-wrap: wrap; align-items: center; }
+  .pool-tools input { flex: 1 1 200px; }
+  .chip { background: var(--panel-2); border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; font-size: 12px; color: var(--muted); }
+  .chip.on { border-color: var(--accent); color: var(--accent); }
+  .pool { max-height: 60vh; overflow: auto; }
+  .ev { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 8px 14px; border-bottom: 1px solid var(--line); }
+  .ev:last-child { border-bottom: 0; }
+  .ev .n { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ev.off .n { color: var(--muted); }
+  .ev .m { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+
+  .don { padding: 12px 14px; border-bottom: 1px solid var(--line); }
+  .don:last-child { border-bottom: 0; }
+  .don .top { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+  .don .who { font-weight: 700; }
+  .don .usd { font-weight: 800; color: var(--accent); }
+  .runs { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+  .run { font-size: 12px; padding: 3px 8px; border-radius: 6px; background: rgba(90,212,143,.12); color: var(--ok); }
+  .run.fail { background: rgba(255,96,96,.12); color: var(--bad); }
+
+  /* dialog */
+  dialog { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 14px; padding: 0; width: min(520px, calc(100% - 24px)); }
+  dialog::backdrop { background: rgba(0,0,0,.6); }
+  dialog form { padding: 20px; }
+  dialog h3 { margin: 0 0 14px; }
+  .dialog-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+  .form-err { color: var(--bad); font-size: 13px; min-height: 18px; }
+
+  .settings { padding: 18px; max-width: 620px; }
+  .toggle-row { display: flex; align-items: center; gap: 12px; margin: 6px 0 14px; }
+  .note { color: var(--muted); font-size: 13px; }
+  .note code { font-family: var(--mono); font-size: 12px; background: var(--panel-2); padding: 1px 5px; border-radius: 4px; }
+
+  .toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 10px 16px; font-size: 13px; opacity: 0; transition: opacity .2s; pointer-events: none; max-width: calc(100% - 32px); z-index: 10; }
+  .toast.show { opacity: 1; }
+  .toast.bad { border-color: var(--bad); }
+</style>
+</head>
+<body>
+
+<!-- ===================== PASSWORD GATE ===================== -->
+<div id="gate" class="gate" hidden>
+  <h1>Love4All <span style="color:var(--accent)">Control Panel</span></h1>
+  <p id="gate-msg">Enter the panel password. This browser will remember it until you press Lock.</p>
+  <div class="field"><input id="gate-pw" type="password" placeholder="Panel password" autocomplete="current-password"></div>
+  <button class="btn primary" id="gate-go" style="width:100%">Unlock</button>
+</div>
+
+<!-- ===================== APP ===================== -->
+<div id="app" class="wrap" hidden>
+  <header>
+    <div class="brand">Love4All <span>Control Panel</span></div>
+    <span class="pill" title="Minecraft relay"><span class="dot" id="mc-dot"></span><span id="mc-text">Minecraft: checking…</span></span>
+    <div class="spacer"></div>
+    <button class="btn" id="refresh">Refresh</button>
+    <button class="btn" id="lock">Lock</button>
+  </header>
+
+  <nav>
+    <button data-tab="entropy" class="on">Entropy</button>
+    <button data-tab="webhooks">Lumia &amp; webhooks</button>
+    <button data-tab="donations">Donations</button>
+    <button data-tab="settings">Settings</button>
+  </nav>
+
+  <!-- ENTROPY -->
+  <section data-panel="entropy">
+    <div class="section-title" style="margin-top:0">
+      <h2>Donation triggers</h2>
+      <p>What each donation amount does in Minecraft. Change an amount with Edit.</p>
+    </div>
+    <div class="triggers" id="triggers"></div>
+
+    <div class="section-title">
+      <h2>Random event pool</h2>
+      <span class="mono" id="pool-count"></span>
+      <p>Which events <b>Random event</b> can pick. Switching one off here never stops Entropy's own timer, only donation picks.</p>
+    </div>
+    <div class="card">
+      <div class="pool-tools">
+        <input type="search" id="pool-search" placeholder="Search events…">
+        <button class="chip on" data-pool="all">All</button>
+        <button class="chip" data-pool="on">On</button>
+        <button class="chip" data-pool="off">Off</button>
+      </div>
+      <div class="pool" id="pool"></div>
+    </div>
+  </section>
+
+  <!-- WEBHOOKS -->
+  <section data-panel="webhooks" hidden>
+    <div class="section-title" style="margin-top:0">
+      <h2>Lumia &amp; webhook routes</h2>
+      <div class="spacer"></div>
+      <button class="btn primary" id="new-route">+ New route</button>
+      <p>Each route calls a URL when a donation matches its amount. Paste a Lumia webhook URL, or any other.</p>
+    </div>
+    <div class="card" id="routes"></div>
+  </section>
+
+  <!-- DONATIONS -->
+  <section data-panel="donations" hidden>
+    <div class="section-title" style="margin-top:0">
+      <h2>Recent donations</h2>
+      <p>The last 30, newest first, and everything each one triggered.</p>
+    </div>
+    <div class="card" id="donations"></div>
+  </section>
+
+  <!-- SETTINGS -->
+  <section data-panel="settings" hidden>
+    <div class="card settings">
+      <h2 style="margin:0 0 4px;font-size:15px">Minecraft relay</h2>
+      <p class="note" style="margin:0 0 16px">Where the Love4All Command Relay mod is listening. Both values are in the server's <code>config/command_relay.json</code>.</p>
+      <div class="field">
+        <label for="relay-url">Address</label>
+        <input id="relay-url" type="url" placeholder="http://your.server.address:8090">
+        <small>Must be reachable from the internet. <code>localhost</code> won't work: Supabase can't see your PC.</small>
+      </div>
+      <div class="field">
+        <label for="relay-secret">Secret</label>
+        <input id="relay-secret" type="password" placeholder="" autocomplete="off">
+        <small id="relay-secret-note"></small>
+      </div>
+      <div class="toggle-row">
+        <button class="switch" id="announce" aria-label="Chat announcements"></button>
+        <span>Announce donations in chat <span class="note">("Name donated $5.00 → Meteor Rain")</span></span>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn primary" id="save-settings">Save</button>
+        <button class="btn" id="test-relay">Test connection</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ===================== DIALOGS ===================== -->
+<dialog id="amount-dialog">
+  <form method="dialog" id="amount-form">
+    <h3 id="amount-title">Edit amount</h3>
+    <div class="amount-editor" id="amount-editor"></div>
+    <div class="form-err" id="amount-err"></div>
+    <div class="dialog-actions">
+      <button class="btn" value="cancel" formnovalidate>Cancel</button>
+      <button class="btn primary" id="amount-save" value="save">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="route-dialog">
+  <form method="dialog" id="route-form">
+    <h3 id="route-title">New route</h3>
+    <div class="field">
+      <label for="r-name">Name</label>
+      <input id="r-name" type="text" placeholder="e.g. Lights go red">
+    </div>
+    <div class="field">
+      <label>Amount</label>
+      <div class="amount-editor" id="route-amount"></div>
+    </div>
+    <div class="field">
+      <label for="r-url">Webhook URL</label>
+      <input id="r-url" type="url" placeholder="https://api.lumiastream.com/api/wh/...">
+    </div>
+    <div class="field">
+      <label for="r-method">Method</label>
+      <select id="r-method">
+        <option value="GET">GET (Lumia)</option>
+        <option value="POST">POST (sends donor name and amount)</option>
+      </select>
+    </div>
+    <div class="form-err" id="route-err"></div>
+    <div class="dialog-actions">
+      <button class="btn" value="cancel" formnovalidate>Cancel</button>
+      <button class="btn primary" id="route-save" value="save">Save route</button>
+    </div>
+  </form>
+</dialog>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  // The only thing baked into this page: where your Supabase function lives. Not a secret.
+  const API = "https://igjexavjstvnqcjfrzgj.supabase.co/functions/v1/donation-inbox/panel";
+  const KEY = "love4allPanelPassword";
+
+  // The three Entropy donation triggers. Each one is a row in the routes table.
+  const ENTROPY_TRIGGERS = [
+    { action: "random", name: "Entropy: random event", title: "Random event", desc: "A random event from the pool below." },
+    { action: "event:timer_speed_2", name: "Entropy: timer x2", title: "Timer ×2", desc: "Entropy's timer runs twice as fast for a while." },
+    { action: "event:timer_speed_5", name: "Entropy: timer x5", title: "Timer ×5", desc: "Entropy's timer runs five times as fast for a while." },
+  ];
+
+  let password = "";
+  try { password = localStorage.getItem(KEY) || ""; } catch (e) {}
+  let state = null;
+  let poolFilter = "all";
+
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const money = (n) => "$" + Number(n).toFixed(2);
+
+  function toast(msg, bad) {
+    const t = $("toast");
+    t.textContent = msg;
+    t.className = "toast show" + (bad ? " bad" : "");
+    clearTimeout(t._h);
+    t._h = setTimeout(() => (t.className = "toast"), 3200);
+  }
+
+  // ---------------------------------------------------------------- API
+  async function api(endpoint, body) {
+    let res;
+    try {
+      res = await fetch(`${API}/${endpoint}`, {
+        method: body ? "POST" : "GET",
+        headers: { "x-panel-password": password, ...(body ? { "Content-Type": "application/json" } : {}) },
+        body: body ? JSON.stringify(body) : undefined,
+      });
+    } catch (e) {
+      throw new Error("Couldn't reach Supabase. Check your connection.");
+    }
+    const data = await res.json().catch(() => ({}));
+    if (res.status === 401) { lock("That password didn't work."); throw new Error("locked"); }
+    if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
+    return data;
+  }
+
+  // ---------------------------------------------------------------- gate
+  function lock(msg) {
+    password = "";
+    try { localStorage.removeItem(KEY); } catch (e) {}
+    $("app").hidden = true;
+    $("gate").hidden = false;
+    if (msg) { $("gate-msg").textContent = msg; $("gate-msg").className = "err"; }
+    $("gate-pw").value = "";
+    $("gate-pw").focus();
+  }
+
+  async function unlock() {
+    password = $("gate-pw").value.trim();
+    if (!password) return;
+    try { await load(); } catch (e) { if (e.message !== "locked") { $("gate-msg").textContent = e.message; $("gate-msg").className = "err"; } return; }
+    try { localStorage.setItem(KEY, password); } catch (e) {}
+    $("gate").hidden = true;
+    $("app").hidden = false;
+    checkRelay();
+  }
+
+  // ---------------------------------------------------------------- data
+  async function load() {
+    state = await api("state");
+    render();
+  }
+
+  async function checkRelay() {
+    const dot = $("mc-dot"), text = $("mc-text");
+    try {
+      const r = await api("relay-status");
+      if (r.ok && r.data) {
+        dot.className = "dot " + (r.data.players > 0 ? "ok" : "warn");
+        text.textContent = r.data.players > 0
+          ? `Minecraft: online · ${r.data.players} player${r.data.players === 1 ? "" : "s"}`
+          : "Minecraft: online · nobody on (events won't run)";
+      } else {
+        dot.className = "dot bad";
+        text.textContent = r.error && r.error.includes("isn't set") ? "Minecraft: not set up" : "Minecraft: unreachable";
+        text.parentElement.title = r.error || "";
+      }
+    } catch (e) {
+      dot.className = "dot bad";
+      text.textContent = "Minecraft: unknown";
+    }
+  }
+
+  // ---------------------------------------------------------------- amounts
+  function amountLabel(min, max) {
+    if (max === null || max === undefined) return `${money(min)}+`;
+    if (Number(min) === Number(max)) return money(min);
+    return `${money(min)} – ${money(max)}`;
+  }
+  function amountHint(min, max) {
+    if (max === null || max === undefined) return "or more";
+    if (Number(min) === Number(max)) return "exactly";
+    return "range";
+  }
+
+  // Builds the Exact / Range / Or-more editor inside `el`. Returns a getter.
+  function amountEditor(el, min, max) {
+    let mode = max === null || max === undefined ? "more" : Number(min) === Number(max) ? "exact" : "range";
+    el.innerHTML = `
+      <div class="seg">
+        <button type="button" data-mode="exact">Exactly</button>
+        <button type="button" data-mode="range">Range</button>
+        <button type="button" data-mode="more">Or more</button>
+      </div>
+      <div class="row2">
+        <div class="money"><input type="number" min="0" step="0.01" data-a="min" aria-label="Amount"></div>
+        <div class="money" data-a="max-wrap"><input type="number" min="0" step="0.01" data-a="max" aria-label="Up to"></div>
+      </div>
+      <small class="note" data-a="hint"></small>`;
+    const minIn = el.querySelector('[data-a="min"]'), maxIn = el.querySelector('[data-a="max"]');
+    const maxWrap = el.querySelector('[data-a="max-wrap"]'), hint = el.querySelector('[data-a="hint"]');
+    minIn.value = min ?? "";
+    maxIn.value = max ?? "";
+    const sync = () => {
+      el.querySelectorAll("[data-mode]").forEach((b) => b.classList.toggle("on", b.dataset.mode === mode));
+      maxWrap.style.visibility = mode === "range" ? "visible" : "hidden";
+      minIn.placeholder = mode === "range" ? "From" : "Amount";
+      maxIn.placeholder = "Up to";
+      hint.textContent = mode === "exact" ? "Fires only on this exact amount."
+        : mode === "range" ? "Fires on any amount between these two, inclusive."
+        : "Fires on this amount or anything higher.";
+    };
+    el.querySelectorAll("[data-mode]").forEach((b) => b.onclick = () => { mode = b.dataset.mode; sync(); });
+    sync();
+    return () => {
+      const lo = minIn.value === "" ? NaN : Number(minIn.value);
+      const hi = maxIn.value === "" ? NaN : Number(maxIn.value);
+      if (!Number.isFinite(lo) || lo < 0) return { error: "Enter an amount." };
+      if (mode === "exact") return { min_amount: lo, max_amount: lo };
+      if (mode === "more") return { min_amount: lo, max_amount: null };
+      if (!Number.isFinite(hi) || hi < lo) return { error: "The second amount must be at least the first." };
+      return { min_amount: lo, max_amount: hi };
+    };
+  }
+
+  // Other enabled routes whose amounts overlap this one (both fire on the same donation).
+  function overlaps(route) {
+    const lo = Number(route.min_amount), hi = route.max_amount === null ? Infinity : Number(route.max_amount);
+    return state.routes.filter((o) => o.id !== route.id && o.enabled && route.enabled &&
+      Number(o.min_amount) <= hi && (o.max_amount === null ? Infinity : Number(o.max_amount)) >= lo);
+  }
+
+  // ---------------------------------------------------------------- render
+  function render() {
+    if (!state) return;
+    renderTriggers();
+    renderPool();
+    renderRoutes();
+    renderDonations();
+    renderSettings();
+  }
+
+  const triggerRoute = (t) => state.routes.find((r) => r.kind === "minecraft" && r.action === t.action);
+
+  function renderTriggers() {
+    $("triggers").innerHTML = ENTROPY_TRIGGERS.map((t, i) => {
+      const r = triggerRoute(t);
+      if (!r) {
+        return `<div class="card trigger off">
+          <div class="top"><h3>${esc(t.title)}</h3></div>
+          <div class="price">Not set</div>
+          <p class="desc">${esc(t.desc)}</p>
+          <div class="actions"><button class="btn primary" data-trigger-edit="${i}">Set amount</button></div>
+        </div>`;
+      }
+      const clash = overlaps(r);
+      return `<div class="card trigger${r.enabled ? "" : " off"}">
+        <div class="top"><h3>${esc(t.title)}</h3>
+          <button class="switch${r.enabled ? " on" : ""}" data-route-enable="${r.id}" aria-label="Turn ${esc(t.title)} on or off"></button></div>
+        <div class="price">${amountLabel(r.min_amount, r.max_amount)}<small>${amountHint(r.min_amount, r.max_amount)}</small></div>
+        <p class="desc">${esc(t.desc)}</p>
+        ${clash.length ? `<div class="overlap">Same amount also fires: ${clash.map((c) => esc(c.name)).join(", ")}</div>` : ""}
+        <div class="actions">
+          <button class="btn" data-trigger-edit="${i}">Edit amount</button>
+          <button class="btn" data-route-test="${r.id}">Test</button>
+        </div>
+      </div>`;
+    }).join("");
+  }
+
+  function renderPool() {
+    const q = $("pool-search").value.trim().toLowerCase();
+    const events = state.events.filter((e) => {
+      if (q && !e.name.toLowerCase().includes(q) && !e.id.includes(q)) return false;
+      if (poolFilter === "on") return e.enabled && !e.never_random;
+      if (poolFilter === "off") return !e.enabled || e.never_random;
+      return true;
+    });
+    const inPool = state.events.filter((e) => e.enabled && !e.never_random).length;
+    $("pool-count").textContent = `${inPool} of ${state.events.length} in the pool`;
+    $("pool").innerHTML = events.length ? events.map((e) => {
+      if (e.never_random) {
+        return `<div class="ev off">
+          <span class="badge info" style="width:38px;text-align:center">—</span>
+          <div><div class="n">${esc(e.name)}</div><div class="m"><span class="mono">${esc(e.id)}</span><span class="badge info">Never random</span></div></div>
+          <button class="btn" data-run="event:${esc(e.id)}">▶ Test</button></div>`;
+      }
+      return `<div class="ev${e.enabled ? "" : " off"}">
+        <button class="switch${e.enabled ? " on" : ""}" data-event="${esc(e.id)}" aria-label="Toggle ${esc(e.name)}"></button>
+        <div><div class="n">${esc(e.name)}</div><div class="m"><span class="mono">${esc(e.id)}</span></div></div>
+        <button class="btn" data-run="event:${esc(e.id)}">▶ Test</button></div>`;
+    }).join("") : '<div class="empty">No events match.</div>';
+  }
+
+  function renderRoutes() {
+    const routes = state.routes.filter((r) => r.kind === "url");
+    if (!routes.length) {
+      $("routes").innerHTML = '<div class="empty">No routes yet. Press <b>+ New route</b> to add one.</div>';
+      return;
+    }
+    $("routes").innerHTML = routes.map((r) => {
+      let host = r.url;
+      try { host = new URL(r.url).host; } catch (e) {}
+      const clash = overlaps(r);
+      return `<div class="list-item${r.enabled ? "" : " off"}">
+        <button class="switch${r.enabled ? " on" : ""}" data-route-enable="${r.id}" aria-label="Turn ${esc(r.name)} on or off"></button>
+        <div style="min-width:0">
+          <div style="display:flex;gap:10px;align-items:baseline;flex-wrap:wrap">
+            <span class="amt">${amountLabel(r.min_amount, r.max_amount)}</span>
+            <span class="name">${esc(r.name)}</span>
+          </div>
+          <div class="sub">${esc(r.method)} · ${esc(host)}</div>
+          ${clash.length ? `<div class="overlap">Same amount also fires: ${clash.map((c) => esc(c.name)).join(", ")}</div>` : ""}
+        </div>
+        <div class="btns">
+          <button class="btn" data-route-test="${r.id}">Test</button>
+          <button class="btn" data-route-edit="${r.id}">Edit</button>
+          <button class="btn danger" data-route-delete="${r.id}">Delete</button>
+        </div>
+      </div>`;
+    }).join("");
+  }
+
+  function renderDonations() {
+    const list = state.donations || [];
+    $("donations").innerHTML = list.length ? list.map((d) => {
+      const when = new Date(d.received_at).toLocaleString();
+      const runs = d.route_runs || [];
+      return `<div class="don">
+        <div class="top"><span class="who">${esc(d.donor_name || "Anonymous")}</span><span class="usd">${money(d.amount_usd)}</span><span class="mono">${esc(when)}</span></div>
+        <div class="runs">${runs.length ? runs.map((r) =>
+          `<span class="run${r.ok ? "" : " fail"}" title="${esc(r.error || "")}">${r.ok ? "✓" : "✕"} ${esc(r.route_name)}${r.detail ? " · " + esc(r.detail) : ""}${r.ok ? "" : " · " + esc((r.error || "failed").slice(0, 80))}</span>`
+        ).join("") : '<span class="mono">No route matched</span>'}</div>
+      </div>`;
+    }).join("") : '<div class="empty">No donations yet.</div>';
+  }
+
+  function renderSettings() {
+    if (document.activeElement !== $("relay-url")) $("relay-url").value = state.settings.relay_url || "";
+    $("relay-secret").placeholder = state.settings.relay_secret_set ? "Saved. Type a new one to replace it." : "Paste the secret";
+    $("relay-secret-note").textContent = state.settings.relay_secret_set
+      ? "A secret is saved. It's never shown again; leave this blank to keep it."
+      : "No secret saved yet.";
+    $("announce").classList.toggle("on", state.settings.announce);
+  }
+
+  // ---------------------------------------------------------------- actions
+  async function act(fn, okMsg) {
+    try {
+      const r = await fn();
+      if (okMsg) toast(typeof okMsg === "function" ? okMsg(r) : okMsg);
+      await load();
+      return r;
+    } catch (e) {
+      if (e.message !== "locked") toast(e.message, true);
+    }
+  }
+
+  function describeFire(r) {
+    if (!r) return "";
+    if (r.ok) return "Fired" + (r.detail ? `: ${r.detail}` : "") + ".";
+    throw new Error(r.error || "Failed.");
+  }
+
+  function editTrigger(i) {
+    const t = ENTROPY_TRIGGERS[i];
+    const r = triggerRoute(t);
+    $("amount-title").textContent = `${t.title}: amount`;
+    $("amount-err").textContent = "";
+    const get = amountEditor($("amount-editor"), r ? r.min_amount : "", r ? r.max_amount : "");
+    const dlg = $("amount-dialog");
+    $("amount-save").onclick = async (ev) => {
+      ev.preventDefault();
+      const amt = get();
+      if (amt.error) { $("amount-err").textContent = amt.error; return; }
+      const saved = await act(() => api("route-save", {
+        id: r ? r.id : undefined, name: t.name, kind: "minecraft", action: t.action,
+        enabled: r ? r.enabled : true, ...amt,
+      }), `${t.title} set to ${amountLabel(amt.min_amount, amt.max_amount)}.`);
+      if (saved) dlg.close();
+    };
+    dlg.showModal();
+  }
+
+  function editRoute(r) {
+    $("route-title").textContent = r ? "Edit route" : "New route";
+    $("route-err").textContent = "";
+    $("r-name").value = r ? r.name : "";
+    $("r-url").value = r ? r.url : "";
+    $("r-method").value = r ? r.method : "GET";
+    const get = amountEditor($("route-amount"), r ? r.min_amount : "", r ? r.max_amount : "");
+    const dlg = $("route-dialog");
+    $("route-save").onclick = async (ev) => {
+      ev.preventDefault();
+      const amt = get();
+      if (amt.error) { $("route-err").textContent = amt.error; return; }
+      try {
+        await api("route-save", {
+          id: r ? r.id : undefined, name: $("r-name").value, kind: "url",
+          url: $("r-url").value, method: $("r-method").value, enabled: r ? r.enabled : true, ...amt,
+        });
+      } catch (e) { if (e.message !== "locked") $("route-err").textContent = e.message; return; }
+      dlg.close();
+      toast(r ? "Route saved." : "Route added.");
+      load();
+    };
+    dlg.showModal();
+    $("r-name").focus();
+  }
+
+  document.addEventListener("click", (ev) => {
+    const t = ev.target.closest("[data-tab],[data-trigger-edit],[data-route-enable],[data-route-test],[data-route-edit],[data-route-delete],[data-event],[data-run],[data-pool]");
+    if (!t || !state) {
+      if (t && t.dataset.tab) switchTab(t.dataset.tab);
+      return;
+    }
+    const d = t.dataset;
+    if (d.tab) switchTab(d.tab);
+    else if (d.triggerEdit !== undefined) editTrigger(Number(d.triggerEdit));
+    else if (d.routeEnable) {
+      const r = state.routes.find((x) => x.id == d.routeEnable);
+      act(() => api("route-enable", { id: r.id, enabled: !r.enabled }), `${r.name} ${r.enabled ? "off" : "on"}.`);
+    }
+    else if (d.routeTest) act(() => api("route-test", { id: Number(d.routeTest) }), describeFire);
+    else if (d.routeEdit) editRoute(state.routes.find((x) => x.id == d.routeEdit));
+    else if (d.routeDelete) {
+      const r = state.routes.find((x) => x.id == d.routeDelete);
+      if (confirm(`Delete "${r.name}"? Its history stays in Donations.`)) act(() => api("route-delete", { id: r.id }), "Route deleted.");
+    }
+    else if (d.event) {
+      const e = state.events.find((x) => x.id === d.event);
+      e.enabled = !e.enabled; // instant feedback
+      renderPool();
+      act(() => api("events-set", { ids: [e.id], enabled: e.enabled }));
+    }
+    else if (d.run) act(() => api("run", { action: d.run }), describeFire);
+    else if (d.pool) {
+      poolFilter = d.pool;
+      document.querySelectorAll("[data-pool]").forEach((c) => c.classList.toggle("on", c === t));
+      renderPool();
+    }
+  });
+
+  function switchTab(name) {
+    document.querySelectorAll("nav [data-tab]").forEach((b) => b.classList.toggle("on", b.dataset.tab === name));
+    document.querySelectorAll("[data-panel]").forEach((p) => (p.hidden = p.dataset.panel !== name));
+    if (name === "donations") load().catch(() => {});
+  }
+
+  $("gate-go").onclick = unlock;
+  $("gate-pw").onkeydown = (e) => e.key === "Enter" && unlock();
+  $("lock").onclick = () => lock();
+  $("refresh").onclick = () => { load().then(() => toast("Up to date.")).catch((e) => e.message !== "locked" && toast(e.message, true)); checkRelay(); };
+  $("new-route").onclick = () => editRoute(null);
+  $("pool-search").oninput = () => state && renderPool();
+  $("announce").onclick = () => $("announce").classList.toggle("on");
+  $("save-settings").onclick = () => act(() => api("settings", {
+    relay_url: $("relay-url").value,
+    relay_secret: $("relay-secret").value,
+    announce: $("announce").classList.contains("on"),
+  }), "Settings saved.").then(() => { $("relay-secret").value = ""; checkRelay(); });
+  $("test-relay").onclick = async () => {
+    try {
+      const r = await api("relay-status");
+      if (r.ok) toast(`Connected. ${r.data && r.data.players != null ? r.data.players + " player(s) online." : ""}`);
+      else toast(r.error || "Couldn't reach the relay.", true);
+    } catch (e) { if (e.message !== "locked") toast(e.message, true); }
+    checkRelay();
+  };
+
+  // Light refresh: only while the page is visible, every 30s for donations, 60s for Minecraft status.
+  setInterval(() => { if (!document.hidden && !$("app").hidden && !document.querySelector("dialog[open]")) load().catch(() => {}); }, 30000);
+  setInterval(() => { if (!document.hidden && !$("app").hidden) checkRelay(); }, 60000);
+
+  if (password) {
+    load().then(() => { $("app").hidden = false; checkRelay(); }).catch((e) => { if (e.message !== "locked") lock(e.message); });
+  } else {
+    lock();
+  }
+})();
+</script>
+</body>
+</html>
