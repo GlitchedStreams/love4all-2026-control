@@ -131,7 +131,10 @@
   .dialog-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
   .form-err { color: var(--bad); font-size: 13px; min-height: 18px; }
 
-  .settings { padding: 18px; max-width: 620px; }
+  .settings { padding: 18px; max-width: 680px; }
+  .steps { margin: 0; padding-left: 20px; display: grid; gap: 10px; font-size: 14px; }
+  .steps code { font-family: var(--mono); font-size: 12px; background: var(--panel-2); padding: 1px 5px; border-radius: 4px; }
+  .snippet { margin: 8px 0; padding: 12px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; font: 12px/1.6 var(--mono); white-space: pre-wrap; word-break: break-all; color: var(--text); }
   .toggle-row { display: flex; align-items: center; gap: 12px; margin: 6px 0 14px; }
   .note { color: var(--muted); font-size: 13px; }
   .note code { font-family: var(--mono); font-size: 12px; background: var(--panel-2); padding: 1px 5px; border-radius: 4px; }
@@ -215,15 +218,21 @@
   <!-- SETTINGS -->
   <section data-panel="settings" hidden>
     <div class="card settings">
-      <h2 style="margin:0 0 4px;font-size:15px">Minecraft relay</h2>
-      <p class="note" style="margin:0 0 16px">Where the Love4All Command Relay mod is listening. Both values are in the server's <code>config/command_relay.json</code>.</p>
-      <div class="field">
-        <label for="relay-url">Address</label>
-        <input id="relay-url" type="url" placeholder="http://your.server.address:8090">
-        <small>Must be reachable from the internet. <code>localhost</code> won't work: Supabase can't see your PC.</small>
-      </div>
-      <div class="field">
-        <label for="relay-secret">Secret</label>
+      <h2 style="margin:0 0 4px;font-size:15px">Connect Minecraft</h2>
+      <p class="note" style="margin:0 0 16px">The Love4All Command Relay mod opens its own connection to Supabase, so it works in singleplayer or on any server, with no ports. Set it up once:</p>
+
+      <ol class="steps">
+        <li>Start Minecraft once with the mod installed, then close it. That creates <code>config/command_relay.json</code>.</li>
+        <li>In that file, set these three values (copy them from here):
+          <pre class="snippet" id="mod-snippet"></pre>
+          <button class="btn" id="copy-snippet">Copy</button>
+        </li>
+        <li>Copy the <code>"secret"</code> from that same file and paste it below, then Save.</li>
+        <li>Start Minecraft again. The header turns green once it's connected.</li>
+      </ol>
+
+      <div class="field" style="margin-top:16px">
+        <label for="relay-secret">Relay secret (from the mod's config)</label>
         <input id="relay-secret" type="password" placeholder="" autocomplete="off">
         <small id="relay-secret-note"></small>
       </div>
@@ -233,7 +242,7 @@
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn primary" id="save-settings">Save</button>
-        <button class="btn" id="test-relay">Test connection</button>
+        <button class="btn" id="test-relay">Check connection</button>
       </div>
     </div>
   </section>
@@ -359,24 +368,27 @@
     render();
   }
 
-  async function checkRelay() {
+  function showRelay(r) {
     const dot = $("mc-dot"), text = $("mc-text");
-    try {
-      const r = await api("relay-status");
-      if (r.ok && r.data) {
-        dot.className = "dot " + (r.data.players > 0 ? "ok" : "warn");
-        text.textContent = r.data.players > 0
-          ? `Minecraft: online · ${r.data.players} player${r.data.players === 1 ? "" : "s"}`
-          : "Minecraft: online · nobody on (events won't run)";
-      } else {
-        dot.className = "dot bad";
-        text.textContent = r.error && r.error.includes("isn't set") ? "Minecraft: not set up" : "Minecraft: unreachable";
-        text.parentElement.title = r.error || "";
-      }
-    } catch (e) {
-      dot.className = "dot bad";
-      text.textContent = "Minecraft: unknown";
+    if (!r) return;
+    const ago = r.last_seen ? Math.round((Date.now() - Date.parse(r.last_seen)) / 60000) : null;
+    text.parentElement.title = r.last_seen ? `Last check-in: ${new Date(r.last_seen).toLocaleString()}` : "";
+    if (r.online) {
+      dot.className = "dot " + (r.players > 0 ? "ok" : "warn");
+      text.textContent = r.players > 0
+        ? `Minecraft: connected · ${r.players} player${r.players === 1 ? "" : "s"}`
+        : "Minecraft: connected · nobody on (events won't run)";
+    } else if (!r.secret_set) {
+      dot.className = "dot bad"; text.textContent = "Minecraft: not set up";
+    } else if (ago === null) {
+      dot.className = "dot bad"; text.textContent = "Minecraft: never connected";
+    } else {
+      dot.className = "dot bad"; text.textContent = `Minecraft: offline · seen ${ago} min ago`;
     }
+  }
+
+  async function checkRelay() {
+    try { const r = await api("relay-status"); showRelay(r); return r; } catch (e) { return null; }
   }
 
   // ---------------------------------------------------------------- amounts
@@ -544,12 +556,15 @@
   }
 
   function renderSettings() {
-    if (document.activeElement !== $("relay-url")) $("relay-url").value = state.settings.relay_url || "";
-    $("relay-secret").placeholder = state.settings.relay_secret_set ? "Saved. Type a new one to replace it." : "Paste the secret";
+    const c = state.settings.mod_config || {};
+    $("mod-snippet").textContent =
+      `"supabaseUrl": "${c.supabaseUrl || ""}",\n"publishableKey": "${c.publishableKey || ""}",\n"channel": "${c.channel || ""}"`;
+    $("relay-secret").placeholder = state.settings.relay_secret_set ? "Saved. Paste a new one to replace it." : "Paste the secret from command_relay.json";
     $("relay-secret-note").textContent = state.settings.relay_secret_set
       ? "A secret is saved. It's never shown again; leave this blank to keep it."
       : "No secret saved yet.";
     $("announce").classList.toggle("on", state.settings.announce);
+    showRelay(state.relay);
   }
 
   // ---------------------------------------------------------------- actions
@@ -656,24 +671,27 @@
   }
 
   $("gate-go").onclick = unlock;
-  $("gate-pw").onkeydown = (e) => e.key === "Enter" && unlock();
-  $("lock").onclick = () => lock();
+  $("gate-pw").onkeydown = (e) => { if (e.key === "Enter") unlock(); };
+  $("lock").onclick = () => { lock(); };
   $("refresh").onclick = () => { load().then(() => toast("Up to date.")).catch((e) => e.message !== "locked" && toast(e.message, true)); checkRelay(); };
-  $("new-route").onclick = () => editRoute(null);
-  $("pool-search").oninput = () => state && renderPool();
-  $("announce").onclick = () => $("announce").classList.toggle("on");
-  $("save-settings").onclick = () => act(() => api("settings", {
-    relay_url: $("relay-url").value,
-    relay_secret: $("relay-secret").value,
-    announce: $("announce").classList.contains("on"),
-  }), "Settings saved.").then(() => { $("relay-secret").value = ""; checkRelay(); });
+  $("new-route").onclick = () => { editRoute(null); };
+  $("pool-search").oninput = () => { if (state) renderPool(); };
+  $("announce").onclick = () => { $("announce").classList.toggle("on"); };
+  $("save-settings").onclick = () => {
+    act(() => api("settings", {
+      relay_secret: $("relay-secret").value,
+      announce: $("announce").classList.contains("on"),
+    }), "Settings saved.").then(() => { $("relay-secret").value = ""; });
+  };
   $("test-relay").onclick = async () => {
-    try {
-      const r = await api("relay-status");
-      if (r.ok) toast(`Connected. ${r.data && r.data.players != null ? r.data.players + " player(s) online." : ""}`);
-      else toast(r.error || "Couldn't reach the relay.", true);
-    } catch (e) { if (e.message !== "locked") toast(e.message, true); }
-    checkRelay();
+    const r = await checkRelay();
+    if (!r) return;
+    if (r.online) toast(`Connected. ${r.players} player${r.players === 1 ? "" : "s"} online.`);
+    else toast(r.secret_set ? "Minecraft isn't connected. Is the game running with the mod, and do the secrets match?" : "Paste the relay secret first.", true);
+  };
+  $("copy-snippet").onclick = async () => {
+    try { await navigator.clipboard.writeText($("mod-snippet").textContent); toast("Copied."); }
+    catch (e) { toast("Couldn't copy. Select the text and copy it by hand.", true); }
   };
 
   // Light refresh: only while the page is visible, every 30s for donations, 60s for Minecraft status.
